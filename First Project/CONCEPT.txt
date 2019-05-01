@@ -1,0 +1,36 @@
+Celem zadania jest rozwiązanie zmodyfikowanego problemu czytelników i pisarzy.
+
+Każdy proces ma przydzielony własny unikalny ID od 0 do N-1. Następnie w fazie relaksu czeka losowy czas do 1.5s, zmienia lub nie swoją rolę, czeka losowo do 1.4s a następnie próbuje wykonać swoje zadanie i wejść do czytelni. To jaką rolę dostanie zależy od prawdopodobieństwa, które jest podane w makrze READER_PERCENT_PROBABILITY, domyślnie 90, co oznacza 90% szans na zostanie czytelnikiem.
+
+Proces macierzysty wypisuje informacje o programie w pętli przez cały czas działania programu.
+
+Do komunikacji między procesami wykorzystano 3 bufory danych. Pierwszy bufor 'buf' przechowuje informacje dotyczące działania programu, tzn kolejno:
+buf[0] Łączną liczbę procesów
+buf[1] Maksymalną liczbę książek
+buf[1] Liczbę książek w bibliotece
+buf[2] Liczbę pisarzy w bibliotece
+buf[3] Liczbę czytelników w bibliotece
+buf[4] Do nadania ID dla procesów
+buf[5] Wartość Nreaders, użyta do synchronizacji procesów wchodzących do czytelni
+buf[6] Czy jest zakleszczenie
+buf[7] Liczbę dotychczasowych zakleszczen
+
+Poza tym użyte zostały jeszcze dwa bufory charow, pierwszy 'process_charbuf' o wielkości N zawiera informacje, czy dany proces jest czytelnikiem (=0) czy pisarzem (=1). Drugi 'book_charbuf' natomiast o wielkości K czy dana książka o danym typie znajduje się w danym indeksie.
+
+Kolejka komunikatów została użyta w następujący sposób. Proces pisarza umieszcza książke na pierwszej wolnej pozycji (numerując od zera) poprzez wysłanie komunikatu o mtype = wolna_pozycja+1, natomiast w tablicy charów 'process' o wielkości N znajdującej się w strukturze komunikatu umieszcza informację, który komunikat będący w tym czasie czytelnikiem musi ją przeczytać.
+
+Czytanie książki odbywa się poprzez wybranie losowej dostępnej książki, a następnie odebraniu komunikatu, "odznaczeniu" swojego ID z tablicy 'process' i sprawdzeniu czy książka została przeczytana przez wszystkie wyznaczone procesy (czyli czy cała tablica jest wypełniona zerami), jeśli tak to książka nie zostanie z powrotem wysłana do kolejki, a liczba wolnych miejsc na książki jest zwiększona.
+
+Poza tym użyte zostało 8 semaforów,  w tym 6 binarnych.
+
+Aby zsynchronizować dostęp czytelników oddzielnie od pisarzy oraz pisarzy od innych pisarzy, użyte zostały 3 semafory binarne o numerach: 2,3,4. Semafor 2 chroni zmienną buf[6], która trzyma informację, ile procesów czytelników domaga się dostępu do czytelni lub w niej jest. Jeśli przynajmniej jeden proces domaga się dostępu, to zostaje opuszczony semafor 4, który wyklucza dostęp pisarzy, kiedy przebywają czytelnicy i na odwrót. Semafor 3 ponadto nie dopuszcza dostępu do czytelni przez więcej niż jednego pisarza.
+
+Semafory 0 i 1 uniemożliwiają przepełnienie czytelni dziełami, nie dopuszczą pisarza do czytelni, jeśli czytelnia jest maksymalnie zapełniona. Semafor 0 ma domyślną wartość K a semafor 1 wartość 0.
+Semafor 5 chroni zmienna buf[2], semafor 6 chroni zmienne buf[3] i buf[4], a semafor 7 chroni process_charbuf.
+
+Aby uniknąć sytuacji, kiedy wszystkie procesy są pisarzami i ubiegają się o dostęp do czytelni, w której nie ma miejsca, co by prowadziło do zakleszczenia, zastosowany został mechanizm usuwający to zakleszczenie. W takiej sytuacji, proces macierzysty w każdej iteracji wypisania informacji sprawdza też, czy doszło do zakleszczenia, jeśli tak to przepuszcza wszystkie procesy pisarzy przez semafor 0, uniemożliwiając również im wstęp do czytelni przez 1 sekundę. Wtedy niektóre procesy mogą znów stać się czytelnikami, co umożliwi dalsze czytanie książek i zwalnianie zasobów.
+
+
+
+
+

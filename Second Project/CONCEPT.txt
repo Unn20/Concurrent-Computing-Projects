@@ -1,0 +1,16 @@
+Celem zadania jest zsynchronizowanie wątków pracy Świętego Mikołaja, reniferów, oraz skrzatów tylko przy użyciu mutexów i zmiennych warunkowych.
+
+Każdy 'typ' wątku ma przyporządkowaną własną funkcje, w funkcji main() inicjalizowany jest wątek Mikołaja, 10 wątków skrzatów i 9 wątków reniferów.
+Następnie proces macierzysty wywołuje funkcję pthread_join i zawiesza się do końca działania programu.
+
+Do synchronizacji użyte zostały 3 zamki i 3 zmienne warunkowe:
+mutex_renifer - zabezpiecza zmienną globalną liczba_reniferów
+mutex_skrzat - zabezpiecza zmienną globalną liczba_skrzatów
+mutex_mikołaj - bez praktycznego zastosowania (dlatego że nie ma więcej niż jednego Mikołaja), użyty w funkcji usypiającej Mikołaja jako wymagany argument
+cond_renifer - zmienna warunkowa na której czekają renifery
+cond_skrzat - zmienna warunkowa na której czekają skrzaty
+cond_mikolaj - zmienna warunkowa na której czeka Mikołaj
+
+Wątek Świętego Mikołaja działa następująco. W nieskończonej pętli Mikołaj sprawdza najpierw, czy liczba_reniferów (zmienna globalna) jest równa 9, jeśli tak, to Mikołaj zeruje tę zmienną i budzi wszystkie procesy reniferów. Następnie, jeśli liczba_skrzatów jest większa od 3 (skrzatów czekających na konsultacje) to Mikołaj budzi wszystkie dotychczas czekające wątki skrzatów i zeruje zmienną. Zanim Mikołaj wejdzie do jednej z tych dwóch sekcji krytycznych, to najpierw blokuje zamek (kolejno mutex_renifer albo mutex_skrzat). Jeśli Mikołaj wykonał jakąś akcję, to zmienna 'spiacy' ustawiona jest na zero co pozwala na ponowne przejście pętli (i uniknięcie zakleszczenia jeśli żaden inny wątek nie obudzi Mikołaja), w przeciwnym przypadku Mikołaj czeka na zmiennej warunkowej cond_mikolaj.
+
+Wątki Renifera i Skrzata działają podobnie, tzn. wątek próbuje zablokować swój zamek, następnie jak wejdzie do sekcji krytycznej to inkrementuje swoją zmienną globalną. Jeśli są co najmniej 3 skrzaty albo równe 9 reniferów, to wątek budzi świętego Mikołaja.
